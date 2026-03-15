@@ -286,8 +286,11 @@ def predict_flood_probability(
 ) -> float:
     """Compute the flood probability for a single image.
 
-    The model outputs P(flood) via sigmoid.  We load raw [0, 255] pixels and
-    apply the backbone-specific preprocessing function -- never a manual /255.
+    With flow_from_directory alphabetical class ordering (flood=0, non_flood=1),
+    the model's sigmoid output is P(non_flood).  flood_prob = 1.0 - pred.
+
+    We load raw [0, 255] pixels and apply the backbone-specific preprocessing
+    function -- never a manual /255.
 
     Args:
         model: Loaded Keras model with a single sigmoid output.
@@ -300,8 +303,9 @@ def predict_flood_probability(
     img = load_img(image_path, target_size=IMAGE_SIZE)
     x = img_to_array(img)                     # shape (224, 224, 3), dtype float32, range [0, 255]
     x = preprocess_fn(x[np.newaxis, ...])     # backbone preprocessing; shape (1, 224, 224, 3)
-    pred = float(model.predict(x, verbose=0)[0][0])  # P(flood) from sigmoid
-    return pred
+    pred = float(model.predict(x, verbose=0)[0][0])  # P(non_flood) due to alphabetical class ordering
+    flood_prob = 1.0 - pred
+    return flood_prob
 
 
 # ---------------------------------------------------------------------------
