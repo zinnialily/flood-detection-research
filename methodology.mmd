@@ -1,0 +1,381 @@
+flowchart LR
+
+%%version 3: claude without cross model (use this one)
+flowchart LR
+
+%% =====================================================================
+%% DATASETS
+%% =====================================================================
+subgraph DATA["Datasets"]
+    D1["USF FloodingDataset\n~3.7k images"]
+    D2["Confounder corpus\nADE20K water bodies + TBD"]
+end
+
+%% =====================================================================
+%% SPLITTING
+%% =====================================================================
+subgraph SPLIT["Stratified splitting"]
+    SP_TRAIN["Train"]
+    SP_VAL["Validation"]
+    SP_CAL["Calibration"]
+    SP_TEST["Flood test set"]
+end
+
+D1 --> SPLIT
+
+subgraph CSPLIT["Confounder split"]
+    CM["Mining subset"]
+    CE["Held-out test set"]
+end
+
+D2 --> CSPLIT
+
+%% =====================================================================
+%% BASELINE
+%% =====================================================================
+subgraph BASE["Baseline"]
+    B1["EfficientNetB0\nResnet50)"] %% WHAT MODELS AM I USING
+    B2["Two-phase progressive\nfine-tuning"]
+    B3["Baseline model M0"]
+end
+
+SP_TRAIN --> B2
+B1 --> B2
+B2 --> B3
+
+%% =====================================================================
+%% HARD NEGATIVE MINING
+%% =====================================================================
+subgraph HNM["Hard negative mining"]
+    H1["Score mining subset with M0"]
+    H2["Select false flood predictions\nabove confidence threshold"]
+    H3["Augment hard negatives\n(targeted oversampling)"]
+end
+
+B3 --> H1
+CM --> H1
+H1 --> H2
+H2 --> H3
+
+%% =====================================================================
+%% TRAINING STRATEGIES
+%% =====================================================================
+subgraph STRAT["Training strategies (ablation)"]
+    S1["A: HNM only"]
+    S2["B: Focal loss only\n(no hard negatives)"]
+    S3["C: HNM + focal loss"]
+end
+
+H3 --> S1
+SP_TRAIN --> S2
+H3 --> S3
+
+%% =====================================================================
+%% FINAL TRAINING
+%% =====================================================================
+subgraph TRAIN["Model training (per strategy)"]
+    T1["Progressive fine-tuning"]
+    T2["Trained classifier"]
+end
+
+S1 --> T1
+S2 --> T1
+S3 --> T1
+SP_TRAIN --> T1
+SP_VAL --> T1
+T1 --> T2
+
+%% =====================================================================
+%% CALIBRATION
+%% =====================================================================
+subgraph CAL["Calibration + thresholding"]
+    C1["Temperature scaling\n(fit on calibration set)"]
+    C2["Threshold sweep\n(recall-first objective)"]
+end
+
+T2 --> C1
+SP_CAL --> C1
+C1 --> C2
+
+%% =====================================================================
+%% EVALUATION
+%% =====================================================================
+subgraph EVAL["Evaluation"]
+    F1["Flood test set\nRecall, Precision, F1, AUC-ROC"]
+    CF1["Confounder test set\nFP rate per confounder type"]
+    STATS["Bootstrap 95% CI\nMcNemar with Bonferroni (k=3 pairs)"]
+end
+
+SP_TEST --> F1
+C2 --> F1
+CE --> CF1
+C2 --> CF1
+F1 --> STATS
+CF1 --> STATS
+
+
+%% ------------------------------------------------
+%% DATASETS
+%% ------------------------------------------------
+subgraph DATA["Datasets"]
+    D1["Flood datasets<br>USF Flood (~2.6k) + AlleyFloodNet (~1–2k)"]
+    D2["Confounder datasets (~8–10k sampled)<br>rivers, lakes, pools, reflections, etc."]
+end
+
+%% Confounder split
+D2 --> CM["Confounder mining subset<br>~5–7k images"]
+D2 --> CE["Held-out confounder test set<br>~2–3k images"]
+
+%% ------------------------------------------------
+%% BASELINE MODEL
+%% ------------------------------------------------
+subgraph BASE["Baseline flood detector"]
+    B1["ImageNet backbone<br>EfficientNet / ResNet"]
+    B2["Fine-tune on flood training set"]
+    B3["Baseline model M0"]
+end
+
+D1 --> B1
+B1 --> B2
+B2 --> B3
+
+%% ------------------------------------------------
+%% CONFOUNDER HARD-NEGATIVE MINING
+%% ------------------------------------------------
+subgraph HNM["Contribution: Confounder-aware hard-negative mining"]
+    H1["Score confounder mining subset with M0"]
+    H2["Select high-confidence false flood predictions"]
+    H3["Confounder-based hard negatives<br>~500–1500 images"]
+end
+
+CM --> H1
+B3 --> H1
+H1 --> H2
+H2 --> H3
+
+%% ------------------------------------------------
+%% TRAINING STRATEGIES
+%% ------------------------------------------------
+subgraph STRAT["Training strategies compared"]
+    S1["A: Offline confounder HNM"]
+    S2["B: Cross-seed HNM"]
+    S3["C: Focal loss baseline"]
+    S4["D: Hybrid (HNM + focal loss)"]
+end
+
+H3 --> S1
+H3 --> S2
+H3 --> S4
+D1 --> S3
+
+%% ------------------------------------------------
+%% FINAL TRAINING
+%% ------------------------------------------------
+subgraph TRAIN["Final model training"]
+    T1["Progressive fine-tuning"]
+    T2["Final flood classifier"]
+end
+
+S1 --> T1
+S2 --> T1
+S3 --> T1
+S4 --> T1
+T1 --> T2
+
+%% ------------------------------------------------
+%% CALIBRATION + THRESHOLDING
+%% ------------------------------------------------
+subgraph CAL["Calibration + recall-first thresholding"]
+    C1["Temperature scaling"]
+    C2["Choose threshold<br>Recall ≥ 95%"]
+end
+
+T2 --> C1
+C1 --> C2
+
+%% ------------------------------------------------
+%% EVALUATION
+%% ------------------------------------------------
+subgraph EVAL["Evaluation goals"]
+
+    subgraph FLOOD_EVAL["Goal 1: Detect floods"]
+        F1["Flood test set"]
+        F2["Metrics:<br>Recall, PR-AUC, ROC-AUC"]
+    end
+
+    subgraph CONF_EVAL["Goal 2: Avoid false alarms"]
+        CF1["Held-out confounder test set"]
+        CF2["Metrics:<br>False-positive rate<br>per confounder type"]
+    end
+
+    STATS["Statistical tests<br>bootstrap CI, McNemar"]
+end
+
+C2 --> F1
+F1 --> F2
+
+CE --> CF1
+C2 --> CF1
+CF1 --> CF2
+
+F2 --> STATS
+CF2 --> STATS
+
+
+
+%%VERSION 2  -- too complicated (claude)
+flowchart LR
+
+%% =====================================================================
+%% DATASETS
+%% =====================================================================
+subgraph DATA["Datasets"]
+    D1["USF FloodingDataset\n~3.7k images\n(Major / Moderate / Minor flood\n+ non-flood categories)"]
+    D2["Confounder corpus\nADE20K water bodies\n+ TBD additional sources"]
+end
+
+%% =====================================================================
+%% FLOOD DATA SPLITTING
+%% =====================================================================
+subgraph SPLIT["Stratified splitting (seed = 42)"]
+    SP1["Flood train set\n~70%"]
+    SP2["Flood val set\n~10%"]
+    SP3["Flood calibration set\n~5%"]
+    SP4["Flood test set\n~15%"]
+end
+
+D1 --> SP1
+D1 --> SP2
+D1 --> SP3
+D1 --> SP4
+
+%% =====================================================================
+%% CONFOUNDER SPLITTING
+%% =====================================================================
+subgraph CSPLIT["Confounder split\n(stratified by confounder type)"]
+    CM["Confounder mining subset\n~60-70% of corpus"]
+    CE["Held-out confounder test set\n~30-40% of corpus"]
+end
+
+D2 --> CM
+D2 --> CE
+
+%% =====================================================================
+%% BASELINE MODEL
+%% =====================================================================
+subgraph BASE["Baseline flood detector"]
+    B1["ImageNet-pretrained backbone\nEfficientNetB0"]
+    B2["Two-phase progressive fine-tuning\non flood train set"]
+    B3["Baseline model M0\n(single seed)"]
+end
+
+SP1 --> B2
+B1 --> B2
+B2 --> B3
+
+%% =====================================================================
+%% CROSS-SEED BASELINES (needed for strategy B)
+%% =====================================================================
+subgraph XSEED["Cross-seed baselines\n(k seeds, e.g. k = 3-5)"]
+    XB1["M0_s1 (seed 1)"]
+    XB2["M0_s2 (seed 2)"]
+    XB3["M0_s3 ... M0_sk"]
+end
+
+SP1 --> XSEED
+B1 --> XSEED
+
+%% =====================================================================
+%% HARD NEGATIVE MINING (single-model, for strategy A / D)
+%% =====================================================================
+subgraph HNM_A["Offline HNM (single model)"]
+    HA1["Score confounder mining subset\nwith M0"]
+    HA2["Select non-flood images where\nflood probability > threshold"]
+    HA3["Hard negative set H_A"]
+end
+
+CM --> HA1
+B3 --> HA1
+HA1 --> HA2
+HA2 --> HA3
+
+%% =====================================================================
+%% HARD NEGATIVE MINING (cross-seed, for strategy B)
+%% =====================================================================
+subgraph HNM_B["Cross-seed HNM (multi-model)"]
+    HB1["Score confounder mining subset\nwith each M0_s"]
+    HB2["Union of high-confidence\nfalse flood predictions across seeds"]
+    HB3["Hard negative set H_B\n(superset of H_A)"]
+end
+
+CM --> HB1
+XSEED --> HB1
+HB1 --> HB2
+HB2 --> HB3
+
+%% =====================================================================
+%% TRAINING STRATEGIES (ablation)
+%% =====================================================================
+subgraph STRAT["Training strategies compared"]
+    S1["A: Offline HNM\n(H_A injected into train set)"]
+    S2["B: Cross-seed HNM\n(H_B injected into train set)"]
+    S3["C: Focal-loss baseline\n(no HNM, loss-based only)"]
+    S4["D: Hybrid\n(H_A + focal loss)"]
+end
+
+HA3 --> S1
+HB3 --> S2
+SP1 --> S3
+HA3 --> S4
+
+%% =====================================================================
+%% FINAL TRAINING
+%% =====================================================================
+subgraph TRAIN["Model training (per strategy)"]
+    T1["Progressive fine-tuning\n(two-phase unfreezing)"]
+    T2["Trained flood classifier\n(one per strategy)"]
+end
+
+S1 --> T1
+S2 --> T1
+S3 --> T1
+S4 --> T1
+SP1 --> T1
+SP2 --> T1
+T1 --> T2
+
+%% =====================================================================
+%% CALIBRATION + THRESHOLDING
+%% =====================================================================
+subgraph CAL["Calibration + threshold selection"]
+    C1["Temperature scaling\n(fit on calibration set)"]
+    C2["Threshold sweep\n(optimise for recall-first objective)"]
+end
+
+T2 --> C1
+SP3 --> C1
+C1 --> C2
+
+%% =====================================================================
+%% EVALUATION
+%% =====================================================================
+subgraph EVAL["Evaluation"]
+    subgraph FLOOD_EVAL["Goal 1: Flood detection"]
+        F1["Flood test set"]
+        F2["Metrics:\nRecall, Precision,\nF1, AUC-ROC"]
+    end
+    subgraph CONF_EVAL["Goal 2: Confounder rejection"]
+        CF1["Held-out confounder test set"]
+        CF2["Metrics:\nFP rate per confounder type"]
+    end
+    STATS["Statistical comparison\nBootstrap 95% CI\nMcNemar (pairwise)\nBonferroni correction (k=6 pairs)"]
+end
+
+C2 --> F1
+SP4 --> F1
+F1 --> F2
+CE --> CF1
+C2 --> CF1
+CF1 --> CF2
+F2 --> STATS
+CF2 --> STATS
