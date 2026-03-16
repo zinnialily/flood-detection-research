@@ -1,7 +1,10 @@
 .worktrees/
 
-# Claude Code — local config and skills (not for version control)
+# Claude Code — local config, skills, and internal project notes (not for version control)
 .claude/
+claude.md
+CLAUDE.md
+docs/superpowers/
 
 # macOS
 .DS_Store
