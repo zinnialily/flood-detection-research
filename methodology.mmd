@@ -1,126 +1,86 @@
-flowchart LR
+flowchart TD
 
-%% =====================================================================
-%% DATASET
-%% =====================================================================
-subgraph DATA["Dataset: FloodingDataset2 (USF, ~3.7k street-level images)"]
-    D_FLOOD["Flood classes\nMajorFlood / ModerateFlood / MinorFlood"]
-    D_NF["Non-flood classes\nNoFlood, parks_walkways\n+ 12 junk categories incl. Swimmingpool"]
+%% ── DATASET ───────────────────────────────────────────────────────────────
+subgraph DATA["Dataset · FloodingDataset2 (USF · ~3.7k street-level images)"]
+    D_FLOOD["Flood classes\nMajorFlood · ModerateFlood · MinorFlood"]
+    D_NF["Non-flood classes\nNoFlood · parks_walkways · 12 junk categories incl. Swimmingpool"]
 end
 
-%% =====================================================================
-%% SPLITTING
-%% =====================================================================
-subgraph SPLIT["Stratified split (seed 42)\nstratify: multiclass_label × is_swimming_pool"]
-    SP_TR["Train  2,627 images (70%)"]
-    SP_VA["Val  563 images (15%)"]
-    SP_TE["Test  564 images (15%)\n[held out — evaluated once per config]"]
+%% ── SPLIT ─────────────────────────────────────────────────────────────────
+subgraph SPLIT["Stratified split  seed=42  ·  stratify: multiclass_label × is_swimming_pool"]
+    SP_TR["Train  2,627 images  (70%)"]
+    SP_VA["Val    563 images   (15%)"]
+    SP_TE["Test   564 images   (15%)  ← held out, one pass per config"]
 end
 
 DATA --> SPLIT
 
-%% =====================================================================
-%% BASELINE TRAINING  (× 2 architectures × 5 seeds)
-%% =====================================================================
-subgraph BASE["Baseline training — train_baseline.py"]
-    B_ARCH["Backbone: EfficientNetB0 or ResNet50\nImageNet weights\nBackbone-native preprocessing\n(no double-rescaling)"]
-    B_PH1["Phase 1: last 30 layers trainable\nLR = 1e-4, max 15 epochs"]
-    B_PH2["Phase 2: first 50 layers frozen\nLR = 1e-5, max 20 epochs"]
-    B_M0["Baseline model M0\n(per architecture)"]
+%% ── BASELINE TRAINING ─────────────────────────────────────────────────────
+subgraph BASE["① Baseline training  ×2 architectures  ×5 seeds  —  train_baseline.py"]
+    B_ARCH["Backbone: EfficientNetB0 or ResNet50\nImageNet weights · backbone-native preprocessing\n(no double-rescaling)"]
+    B_PH1["Phase 1  last 30 layers trainable · LR = 1e-4 · max 15 epochs"]
+    B_PH2["Phase 2  first 50 layers frozen   · LR = 1e-5 · max 20 epochs"]
+    B_M0(["M0 — Baseline model  (per architecture)"])
 end
 
-SP_TR --> B_PH1
-SP_VA --> B_PH1
-B_ARCH --> B_PH1
-B_PH1 --> B_PH2
-B_PH2 --> B_M0
+SP_TR --> BASE
+SP_VA --> BASE
+B_ARCH --> B_PH1 --> B_PH2 --> B_M0
 
-%% =====================================================================
-%% CONFOUNDER ANALYSIS
-%% =====================================================================
-subgraph CONF["Confounder analysis — analyze_confounders.py"]
+%% ── CONFOUNDER ANALYSIS ───────────────────────────────────────────────────
+subgraph CONF["② Confounder analysis  —  analyze_confounders.py"]
     CA1["Predict on train/non_flood/ with M0"]
-    CA2["Rank non-flood categories by FP rate\n(pools, vehicles, animals, wet roads ...)"]
-    CA3["Output: candidate list for HNM\n(fp_threshold = 0.15 default)"]
+    CA2["Rank non-flood categories by FP rate\n(pools · vehicles · animals · wet roads ...)"]
+    CA3["Output: HNM candidate list\n(fp_threshold = 0.15 default)"]
 end
 
-B_M0 --> CA1
-SP_TR --> CA1
-CA1 --> CA2
-CA2 --> CA3
+B_M0 --> CA1 --> CA2 --> CA3
 
-%% =====================================================================
-%% HARD NEGATIVE MINING
-%% =====================================================================
-subgraph HNM["Hard negative mining — train_hnm.py"]
-    H1["Mine: flag train/non_flood/ images\nwhere p(flood) > tau\n[tau selected by val sweep, default 0.3]"]
-    H2["Augment: 5x per mined image\n(rotation, flip, zoom, brightness)"]
-    H3["Inject into processed_data/binary_hnm/\n[val + test dirs never modified]"]
-    H4["Partition integrity assertion\n[halts on any train ↔ val/test overlap]"]
+%% ── HARD NEGATIVE MINING ──────────────────────────────────────────────────
+subgraph HNM["③ Hard negative mining  —  train_hnm.py"]
+    H1["Mine: flag train/non_flood/ images where p(flood) > tau\ntau selected by val sweep  (default 0.3)"]
+    H2["Augment 5× per mined image\nrotation · flip · zoom · brightness"]
+    H3["Inject into processed_data/binary_hnm/\nval + test dirs never modified"]
+    H4[/"Partition integrity assertion  ← halts on any train ↔ val/test overlap"/]
 end
 
-CA3 --> H1
-H1 --> H2
-H2 --> H3
-H3 --> H4
+CA3 --> H1 --> H2 --> H3 --> H4
 
-%% =====================================================================
-%% TRAINING CONFIGURATIONS (ablation)
-%% =====================================================================
-subgraph CONFIGS["Training configurations"]
-    C_HNM["HNM retrain\nPhase 1: LR = 5e-5, 15 epochs\nPhase 2: LR = 1e-5, 10 epochs\n(× EfficientNetB0 and ResNet50)"]
-    C_CTRL["Extended-training control\n(--no_injection)\nSame total epoch budget, no HNM injected\n[critical ablation: isolates HNM from extra training]"]
+%% ── RETRAIN CONFIGURATIONS ────────────────────────────────────────────────
+subgraph CONFIGS["④ Retrain configurations"]
+    C_HNM["HNM retrain\nPhase 1: LR = 5e-5 · max 15 epochs\nPhase 2: LR = 1e-5 · max 10 epochs\n× EfficientNetB0  ×  ResNet50"]
+    C_CTRL["Extended-training control  (--no_injection)\nSame total epoch budget · no HNM injected\n← critical ablation: isolates HNM contribution from extra training"]
 end
 
-H4 --> C_HNM
+H4    --> C_HNM
+B_M0  --> C_CTRL
 SP_TR --> C_HNM
 SP_VA --> C_HNM
-
-B_M0 --> C_CTRL
 SP_TR --> C_CTRL
 SP_VA --> C_CTRL
 
-%% =====================================================================
-%% THRESHOLD SELECTION  (val only — never test)
-%% =====================================================================
-subgraph THRESH["Threshold selection (val set only)"]
-    TH1["Sweep 0.05 to 0.95 on validation set"]
-    TH2["Select: max flood recall\nsubject to 0% pool FP on val"]
+%% ── THRESHOLD SELECTION ───────────────────────────────────────────────────
+subgraph THRESH["⑤ Threshold selection  (val set only — never test)"]
+    TH1["Sweep 0.05 → 0.95 on val set\ntrack flood recall + pool FP rate per step"]
+    TH2["Select: max flood recall  s.t.  0% pool FP on val"]
 end
 
-B_M0 --> TH1
-C_HNM --> TH1
+B_M0   --> TH1
+C_HNM  --> TH1
 C_CTRL --> TH1
-SP_VA --> TH1
 TH1 --> TH2
 
-%% =====================================================================
-%% EVALUATION
-%% =====================================================================
-subgraph EVAL["Evaluation — evaluate.py"]
-
-    subgraph FD_EVAL["Flood detection (test set, 564 images)"]
-        EV1["PR-AUC (primary metric)\nRecall, F1, Precision, ROC-AUC, Accuracy"]
-        EV2["Severity-stratified recall\nMajor / Moderate / Minor flood"]
-    end
-
-    subgraph CF_EVAL["Confounder rejection"]
-        EV3["Per-category FP rates\n(swimming pool, vehicles, animals ...)"]
-        EV4["Pool FP rate + Clopper-Pearson 95% CI\nFisher exact test (pre vs post HNM)"]
-    end
-
-    subgraph ST_EVAL["Statistical validation"]
-        EV5["5-seed runs (42, 123, 256, 512, 1024)\nMean ± std across seeds"]
-        EV6["Bootstrap 95% CIs (1000 resamples)\nMcNemar test (pairwise model comparisons)"]
-    end
-
+%% ── EVALUATION ────────────────────────────────────────────────────────────
+subgraph EVAL["⑥ Final evaluation  —  evaluate.py  (test set · 564 images · one pass per config)"]
+    EV_DET["Flood detection\nPR-AUC (primary) · Recall · Precision · F1 · ROC-AUC · Accuracy"]
+    EV_SEV["Severity-stratified recall\nMajor · Moderate · Minor flood"]
+    EV_FP["Confounder rejection\nPer-category FP rates · Pool FP + Clopper-Pearson 95% CI\nFisher exact test (pre vs post HNM)"]
+    EV_STAT["Statistical validation\n5-seed mean ± std · Bootstrap 95% CIs · McNemar test"]
 end
 
-TH2 --> EV1
-SP_TE --> EV1
-EV1 --> EV2
-EV1 --> EV3
-EV3 --> EV4
-EV2 --> EV5
-EV4 --> EV5
-EV5 --> EV6
+TH2   --> EV_DET
+SP_TE --> EV_DET
+EV_DET --> EV_SEV
+EV_DET --> EV_FP
+EV_SEV --> EV_STAT
+EV_FP  --> EV_STAT
