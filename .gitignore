@@ -1,1 +1,30 @@
 .worktrees/
+
+# Claude Code — local config and skills (not for version control)
+.claude/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model checkpoints and large result files (stored on Drive)
+*.keras
+*.h5
+*.pb
+results/logs/*.csv
+results/predictions/*.csv
+results/figures/*.png
+
+# Secrets / credentials
+*.env
+service_account*.json
