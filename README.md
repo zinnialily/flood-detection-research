@@ -18,7 +18,7 @@
 
 ## Code repository
 
-The actual training code lives at: https://github.com/CRIS-Hazard/imagevalidation
+The actual training code can be seen in the other branch.
 
 ## Tech
 
