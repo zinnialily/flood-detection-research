@@ -18,7 +18,7 @@
 
 ## Code repository
 
-The actual training code can be seen in the other branch.
+The actual training code can be seen in the other branch "feature/hnm-pipeline-refactor".
 
 ## Tech
 
