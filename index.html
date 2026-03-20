@@ -6,9 +6,10 @@
   <title>Flood Detection Research — Street-Level Imagery + Hard Negative Mining</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Space Grotesk (headings) + IBM Plex Sans (body) + JetBrains Mono (code) -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <!-- Tailwind CDN (Play CDN — supports @apply) -->
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -20,21 +21,111 @@
             accent:      '#38bdf8',
             warn:        '#fb923c',
           },
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontFamily: {
+            sans:    ['IBM Plex Sans', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            mono:    ['JetBrains Mono', 'monospace'],
+          },
         }
       }
     }
   </script>
 
-  <!-- Shared component classes (type=text/tailwindcss enables @apply with the CDN) -->
   <style type="text/tailwindcss">
-    .chip         { @apply px-3 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-300 text-sm; }
-    .btn-primary  { @apply px-5 py-2 rounded-lg bg-accent text-navy font-semibold hover:bg-sky-400 transition; }
-    .btn-outline  { @apply px-5 py-2 rounded-lg border border-slate-500 text-slate-300 hover:border-accent hover:text-accent transition; }
-    .section-title{ @apply text-3xl font-bold text-white; }
+    .chip         { @apply px-3 py-1 rounded-full bg-slate-800 border border-slate-600 text-slate-300 text-sm font-sans; }
+    .btn-primary  { @apply px-5 py-2.5 rounded-lg bg-accent text-navy font-semibold hover:bg-sky-400 transition font-sans; }
+    .btn-outline  { @apply px-5 py-2.5 rounded-lg border border-slate-500 text-slate-300 hover:border-accent hover:text-accent transition font-sans; }
+    .section-title{ @apply text-3xl font-bold text-white font-display; }
     .card         { @apply p-6 rounded-xl bg-slate-800/50 border border-slate-700 hover:border-slate-500 transition; }
-    .tab-btn      { @apply px-4 py-2 rounded-lg text-sm border border-slate-600 text-slate-400 hover:border-accent hover:text-accent transition cursor-pointer bg-transparent; }
+    .tab-btn      { @apply px-5 py-3 rounded-lg text-sm border border-slate-600 text-slate-400 hover:border-accent hover:text-accent transition cursor-pointer bg-transparent font-sans; }
     .tab-btn.active { @apply border-accent text-accent bg-accent/10; }
+  </style>
+
+  <style>
+    /* Prevent sticky nav from overlapping anchor-linked sections */
+    section[id] { scroll-margin-top: 4rem; }
+
+    /* Skip-to-content (WCAG 2.1 Level A) */
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 1rem;
+      background: #38bdf8;
+      color: #0f172a;
+      padding: 0.5rem 1rem;
+      border-radius: 0 0 0.5rem 0.5rem;
+      font-weight: 600;
+      z-index: 200;
+      transition: top 0.1s;
+    }
+    .skip-link:focus { top: 0; }
+
+    /* Active nav link */
+    nav a.nav-active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    /* Preliminary data visual recession */
+    .preliminary-data {
+      opacity: 0.72;
+      filter: saturate(0.6);
+      position: relative;
+    }
+    .preliminary-data::after {
+      content: 'PRELIMINARY';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-15deg);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: rgba(251, 146, 60, 0.18);
+      pointer-events: none;
+      letter-spacing: 0.15em;
+      white-space: nowrap;
+    }
+
+    /* Scroll fade-in animation */
+    .fade-in-up {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .fade-in-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in-up { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* Back-to-top button */
+    #back-to-top {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 50;
+      background: rgba(30,41,59,0.95);
+      border: 1px solid #475569;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, color 0.2s, border-color 0.2s;
+    }
+    #back-to-top.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #back-to-top:hover { color: #38bdf8; border-color: #38bdf8; }
   </style>
 
   <!-- Chart.js -->
@@ -49,33 +140,49 @@
 
 <body class="bg-[#0f172a] text-slate-100 font-sans antialiased">
 
+<!-- Skip to content (WCAG 2.1) -->
+<a href="#hero" class="skip-link">Skip to main content</a>
+
 <!-- ═══════════════════════════════════════════════════════════════════════
      STICKY NAV
 ═══════════════════════════════════════════════════════════════════════ -->
 <nav class="fixed top-0 w-full z-50 bg-[#0f172a]/95 backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center gap-1 text-sm text-slate-400">
-  <span class="text-white font-semibold mr-4 hidden md:block">Flood Detection</span>
-  <a href="#problem"     class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition">Problem</a>
-  <a href="#journey"     class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition">Journey</a>
-  <a href="#methodology" class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition">Methodology</a>
-  <a href="#results"     class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition">Results</a>
-  <a href="#next"        class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition">What's Next</a>
-  <a href="#code"        class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition">Code</a>
+  <span class="text-white font-semibold font-display mr-4 text-base">Flood Detection</span>
+  <a href="#problem"     class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition" data-section="problem">Problem</a>
+  <a href="#journey"     class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition" data-section="journey">Journey</a>
+  <a href="#methodology" class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition" data-section="methodology">Methodology</a>
+  <a href="#results"     class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition" data-section="results">Results</a>
+  <a href="#next"        class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition" data-section="next">What's Next</a>
+  <a href="#code"        class="px-3 py-1 rounded hover:text-accent hover:bg-slate-800 transition" data-section="code">Code</a>
 </nav>
 
-<main>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PERSISTENT STATUS BANNER
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="status-banner" class="fixed top-[52px] w-full z-40 bg-amber-950/95 border-b-2 border-warn/60 backdrop-blur px-6 py-3 flex items-center justify-between gap-4">
+  <div class="flex items-center gap-3">
+    <span class="text-warn text-lg shrink-0">⏳</span>
+    <p class="text-warn/90 text-sm font-sans">
+      <span class="font-semibold text-warn">Pipeline verified — GPU training in progress.</span>
+      &nbsp;All numbers below are from a bugged preprocessing pipeline.
+      Corrected results will replace them after GPU access is secured. <a href="#journey" class="underline decoration-warn/50 hover:decoration-warn transition">See Phase 2 for details ↓</a>
+    </p>
+  </div>
+  <button onclick="document.getElementById('status-banner').style.display='none'; document.getElementById('hero').style.paddingTop='5rem';"
+          class="shrink-0 text-warn/60 hover:text-warn transition text-xl leading-none" aria-label="Dismiss banner">×</button>
+</div>
+
+<main id="hero-anchor">
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      HERO
 ═══════════════════════════════════════════════════════════════════════ -->
-<section id="hero" class="min-h-screen flex flex-col justify-center px-8 pt-20 pb-16 max-w-5xl mx-auto">
-  <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-warn/20 border border-warn/40 text-warn text-sm w-fit">
-    ⏳ Awaiting GPU access &nbsp;·&nbsp; Final results pending
-  </div>
-  <h1 class="text-4xl md:text-6xl font-bold text-white leading-tight mb-4">
+<section id="hero" class="min-h-screen flex flex-col justify-center px-8 pt-36 pb-16 max-w-5xl mx-auto">
+  <h1 class="text-4xl md:text-6xl font-bold text-white leading-tight mb-4 font-display">
     Flood Detection<br/>
     <span class="text-accent">from Street-Level Imagery</span>
   </h1>
-  <p class="text-xl text-slate-300 mb-6 max-w-2xl">
+  <p class="text-xl text-slate-300 mb-6 max-w-2xl font-light">
     Hard negative mining for confounder-robust screening. Binary classification with
     progressive transfer learning — targeting emergency response triage.
   </p>
@@ -109,7 +216,7 @@
 ═══════════════════════════════════════════════════════════════════════ -->
 <section id="problem" class="py-24 px-8 max-w-5xl mx-auto">
   <h2 class="section-title">The Problem</h2>
-  <p class="text-slate-400 mt-2 mb-10 max-w-2xl">
+  <p class="text-slate-400 mt-2 mb-10 max-w-2xl font-light">
     Street cameras and social media produce a flood of images during disasters. Manual review
     is too slow. Automated classifiers are fast — but they make dangerous mistakes.
   </p>
@@ -117,10 +224,10 @@
   <div class="grid md:grid-cols-3 gap-6">
 
     <!-- Card 1: Why floods -->
-    <div class="card">
+    <div class="card fade-in-up">
       <div class="text-3xl mb-3">🌊</div>
-      <h3 class="text-white font-semibold mb-2">Rapid flood detection</h3>
-      <p class="text-slate-400 text-sm">
+      <h3 class="text-white font-semibold mb-2 font-display">Rapid flood detection</h3>
+      <p class="text-slate-400 text-sm font-light">
         Street-level cameras, dashcams, and social media images contain early flood signals —
         but manual review is too slow for emergency dispatch. An automated filter could
         identify flooded scenes within seconds.
@@ -128,10 +235,10 @@
     </div>
 
     <!-- Card 2: The confounder problem -->
-    <div class="card border-warn/40">
+    <div class="card border-warn/40 fade-in-up" style="transition-delay:0.1s">
       <div class="text-3xl mb-3">🏊</div>
-      <h3 class="text-white font-semibold mb-2">The confounder problem</h3>
-      <p class="text-slate-400 text-sm">
+      <h3 class="text-white font-semibold mb-2 font-display">The confounder problem</h3>
+      <p class="text-slate-400 text-sm font-light">
         Swimming pools, wet roads, and rain-obscured scenes look visually similar to flooded
         streets. A naive classifier trained without these <em>hard negatives</em> triggers
         false alarms — and false dispatch calls cost lives and resources.
@@ -139,10 +246,10 @@
     </div>
 
     <!-- Card 3: High recall -->
-    <div class="card border-accent/40">
+    <div class="card border-accent/40 fade-in-up" style="transition-delay:0.2s">
       <div class="text-3xl mb-3">🎯</div>
-      <h3 class="text-white font-semibold mb-2">High recall over precision</h3>
-      <p class="text-slate-400 text-sm">
+      <h3 class="text-white font-semibold mb-2 font-display">High recall over precision</h3>
+      <p class="text-slate-400 text-sm font-light">
         In emergency response, missing a real flood is far more costly than a false alarm.
         This project explicitly targets ≥ 95% recall — catching more real floods is the
         primary design constraint, not minimising false positives.
@@ -152,23 +259,23 @@
   </div>
 
   <!-- Dataset breakdown -->
-  <div class="mt-10 p-6 rounded-xl bg-slate-800/30 border border-slate-700">
-    <h3 class="text-white font-semibold mb-4">Dataset: FloodingDataset2 (University of South Florida)</h3>
-    <div class="grid md:grid-cols-4 gap-4 text-center">
+  <div class="mt-10 p-6 rounded-xl bg-slate-800/30 border border-slate-700 fade-in-up">
+    <h3 class="text-white font-semibold mb-4 font-display">Dataset: FloodingDataset2 (University of South Florida)</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
       <div>
-        <p class="text-2xl font-bold text-accent">3,754</p>
+        <p class="text-2xl font-bold text-accent font-display">3,754</p>
         <p class="text-slate-400 text-xs mt-1">Total images</p>
       </div>
       <div>
-        <p class="text-2xl font-bold text-green-400">2,627</p>
+        <p class="text-2xl font-bold text-green-400 font-display">2,627</p>
         <p class="text-slate-400 text-xs mt-1">Training (70%)</p>
       </div>
       <div>
-        <p class="text-2xl font-bold text-yellow-400">563</p>
+        <p class="text-2xl font-bold text-yellow-400 font-display">563</p>
         <p class="text-slate-400 text-xs mt-1">Validation (15%)</p>
       </div>
       <div>
-        <p class="text-2xl font-bold text-purple-400">564</p>
+        <p class="text-2xl font-bold text-purple-400 font-display">564</p>
         <p class="text-slate-400 text-xs mt-1">Test (15%) — held out</p>
       </div>
     </div>
@@ -187,17 +294,17 @@
 ═══════════════════════════════════════════════════════════════════════ -->
 <section id="journey" class="py-24 px-8 max-w-5xl mx-auto">
   <h2 class="section-title">Research Journey</h2>
-  <p class="text-slate-400 mt-2 mb-12">Three phases — each teaching something the previous version didn't know.</p>
+  <p class="text-slate-400 mt-2 mb-12 font-light">Three phases — each teaching something the previous version didn't know.</p>
 
   <div class="relative pl-8 border-l-2 border-slate-700 space-y-16">
 
     <!-- ── PHASE 1 ───────────────────────────────────────────── -->
-    <div class="relative">
-      <div class="absolute -left-[41px] w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-400 flex items-center justify-center text-xs text-white font-bold">1</div>
+    <div class="relative fade-in-up">
+      <div class="absolute -left-[41px] w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-400 flex items-center justify-center text-xs text-white font-bold font-mono">1</div>
       <div class="card">
         <span class="text-xs font-mono text-slate-500 uppercase tracking-wider">Phase 1 · CIBB 2026</span>
-        <h3 class="text-xl font-semibold text-white mt-1 mb-3">Original Conference Paper</h3>
-        <p class="text-slate-400 text-sm mb-4">
+        <h3 class="text-xl font-semibold text-white mt-1 mb-3 font-display">Original Conference Paper</h3>
+        <p class="text-slate-400 text-sm mb-4 font-light">
           Built a binary flood classifier using EfficientNetB0 and ResNet50 with two-phase
           progressive fine-tuning. Applied hard negative mining (HNM) to EfficientNetB0 after
           discovering that swimming pools caused a 20% false positive rate. Results looked impressive.
@@ -216,9 +323,9 @@
                 <th class="pb-2">Pool FP</th>
               </tr>
             </thead>
-            <tbody class="text-slate-300">
+            <tbody class="text-slate-300 font-mono text-xs">
               <tr class="border-b border-slate-800">
-                <td class="py-2 pr-4">EfficientNetB0</td>
+                <td class="py-2 pr-4 font-sans text-sm">EfficientNetB0</td>
                 <td class="pr-4">85.46%</td>
                 <td class="pr-4">82.22%</td>
                 <td class="pr-4">86.33%</td>
@@ -226,7 +333,7 @@
                 <td class="text-warn font-medium">20.0%</td>
               </tr>
               <tr class="border-b border-slate-800">
-                <td class="py-2 pr-4">ResNet50</td>
+                <td class="py-2 pr-4 font-sans text-sm">ResNet50</td>
                 <td class="pr-4">94.15%</td>
                 <td class="pr-4">94.60%</td>
                 <td class="pr-4">94.75%</td>
@@ -234,7 +341,7 @@
                 <td class="text-warn font-medium">13.3%</td>
               </tr>
               <tr>
-                <td class="py-2 pr-4">EfficientNetB0 + HNM</td>
+                <td class="py-2 pr-4 font-sans text-sm">EfficientNetB0 + HNM</td>
                 <td class="pr-4">98.76%</td>
                 <td class="pr-4">99.37%</td>
                 <td class="pr-4">98.89%</td>
@@ -254,19 +361,19 @@
     </div>
 
     <!-- ── PHASE 2 ───────────────────────────────────────────── -->
-    <div class="relative">
-      <div class="absolute -left-[41px] w-6 h-6 rounded-full bg-warn/80 border-2 border-warn flex items-center justify-center text-xs text-navy font-bold">!</div>
+    <div class="relative fade-in-up">
+      <div class="absolute -left-[41px] w-6 h-6 rounded-full bg-warn/80 border-2 border-warn flex items-center justify-center text-xs text-navy font-bold font-mono">!</div>
       <div class="card border-warn/40">
         <span class="text-xs font-mono text-warn/70 uppercase tracking-wider">Phase 2 · Bug Discovery</span>
-        <h3 class="text-xl font-semibold text-white mt-1 mb-3">Three Critical Problems Found</h3>
+        <h3 class="text-xl font-semibold text-white mt-1 mb-3 font-display">Three Critical Problems Found</h3>
 
         <div class="space-y-6">
 
           <!-- Bug 1: preprocessing -->
           <div>
             <h4 class="text-sm font-semibold text-white mb-2">🐛 Bug 1: Double-rescaling — transfer learning was non-functional</h4>
-            <p class="text-slate-400 text-sm mb-3">
-              The original code used <code class="text-accent bg-slate-900 px-1 rounded">ImageDataGenerator(rescale=1./255)</code>
+            <p class="text-slate-400 text-sm mb-3 font-light">
+              The original code used <code class="text-accent bg-slate-900 px-1 rounded font-mono">ImageDataGenerator(rescale=1./255)</code>
               AND the backbone's built-in preprocessing (which also divides by 255). This compressed pixel
               values to ≈[0, 0.004] — 255× too small. The frozen pretrained ImageNet features produced
               near-zero activations through ReLU nonlinearities. Transfer learning was essentially broken.
@@ -277,7 +384,7 @@
             <div class="grid md:grid-cols-2 gap-3">
               <div>
                 <p class="text-xs text-warn mb-1 font-mono font-semibold">❌ Old code (train_efficientnet.py)</p>
-                <pre class="bg-slate-900 rounded-lg p-3 text-xs text-slate-400 overflow-x-auto leading-relaxed"><code>train_aug = ImageDataGenerator(
+                <pre class="bg-slate-900 rounded-lg p-3 text-xs text-slate-400 overflow-x-auto leading-relaxed font-mono"><code>train_aug = ImageDataGenerator(
     <span style="color:#fb923c">rescale=1.0 / 255,</span>  # ← BUG
     rotation_range=15,
     horizontal_flip=True,
@@ -293,7 +400,7 @@ base_model = EfficientNetB0(
               </div>
               <div>
                 <p class="text-xs text-accent mb-1 font-mono font-semibold">✅ Fixed code (scripts/utils.py)</p>
-                <pre class="bg-slate-900 rounded-lg p-3 text-xs text-slate-400 overflow-x-auto leading-relaxed"><code>train_aug = ImageDataGenerator(
+                <pre class="bg-slate-900 rounded-lg p-3 text-xs text-slate-400 overflow-x-auto leading-relaxed font-mono"><code>train_aug = ImageDataGenerator(
     <span style="color:#38bdf8">preprocessing_function=preprocess_input,</span>
     rotation_range=15,
     horizontal_flip=True,
@@ -313,19 +420,19 @@ base_model = EfficientNetB0(
           <!-- Bug 2: confounded comparison -->
           <div class="pt-2 border-t border-slate-700">
             <h4 class="text-sm font-semibold text-white mb-2">🔬 Issue 2: Confounded architectural comparison</h4>
-            <p class="text-slate-400 text-sm">
+            <p class="text-slate-400 text-sm font-light">
               HNM was only applied to EfficientNetB0, not ResNet50. The comparison was therefore
               <em>EfficientNetB0+HNM+extra-training</em> vs <em>ResNet50-without-either</em>. Any
               conclusion about which architecture is "better with HNM" was completely unsupported —
               the two variables (architecture and training) were never separated.
-              <strong class="text-white">Fix: add ResNet50+HNM to the pipeline.</strong>
+              <strong class="text-white font-medium">Fix: add ResNet50+HNM to the pipeline.</strong>
             </p>
           </div>
 
           <!-- Bug 3: threshold on test set -->
           <div class="pt-2 border-t border-slate-700">
             <h4 class="text-sm font-semibold text-white mb-2">📊 Issue 3: Decision threshold selected on the test set</h4>
-            <p class="text-slate-400 text-sm">
+            <p class="text-slate-400 text-sm font-light">
               The reported optimal threshold (0.85) was chosen by sweeping on test data — this
               is circular validation. Selecting a threshold by the metric it will be evaluated on
               guarantees overfitting to that specific set. The current pipeline selects all
@@ -339,59 +446,59 @@ base_model = EfficientNetB0(
     </div>
 
     <!-- ── PHASE 3 ───────────────────────────────────────────── -->
-    <div class="relative">
-      <div class="absolute -left-[41px] w-6 h-6 rounded-full bg-accent border-2 border-sky-300 flex items-center justify-center text-xs text-navy font-bold">✓</div>
+    <div class="relative fade-in-up">
+      <div class="absolute -left-[41px] w-6 h-6 rounded-full bg-accent border-2 border-sky-300 flex items-center justify-center text-xs text-navy font-bold font-mono">✓</div>
       <div class="card border-accent/40">
         <span class="text-xs font-mono text-accent/70 uppercase tracking-wider">Phase 3 · Current Refactor</span>
-        <h3 class="text-xl font-semibold text-white mt-1 mb-3">Methodologically Rigorous Pipeline</h3>
-        <p class="text-slate-400 text-sm mb-5">Complete rewrite with six key improvements — pipeline is done, awaiting GPU quota to run:</p>
+        <h3 class="text-xl font-semibold text-white mt-1 mb-3 font-display">Methodologically Rigorous Pipeline</h3>
+        <p class="text-slate-400 text-sm mb-5 font-light">Complete rewrite with six key improvements — pipeline is done, awaiting GPU quota to run:</p>
 
         <div class="grid md:grid-cols-2 gap-4">
           <div class="flex gap-3 items-start">
             <span class="text-accent mt-0.5 text-lg shrink-0">→</span>
             <div>
               <p class="text-sm text-white font-medium">Preprocessing bug fixed</p>
-              <p class="text-xs text-slate-500 mt-0.5">Explicit <code class="text-slate-400">preprocessing_function</code>, <code class="text-slate-400">include_preprocessing=False</code>, assertion cell before every training loop</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-light">Explicit <code class="text-slate-400 font-mono">preprocessing_function</code>, <code class="text-slate-400 font-mono">include_preprocessing=False</code>, assertion cell before every training loop</p>
             </div>
           </div>
           <div class="flex gap-3 items-start">
             <span class="text-accent mt-0.5 text-lg shrink-0">→</span>
             <div>
               <p class="text-sm text-white font-medium">ResNet50 + HNM added</p>
-              <p class="text-xs text-slate-500 mt-0.5">Unified <code class="text-slate-400">--arch</code> flag enables fair architectural comparison via identical training protocols</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-light">Unified <code class="text-slate-400 font-mono">--arch</code> flag enables fair architectural comparison via identical training protocols</p>
             </div>
           </div>
           <div class="flex gap-3 items-start">
             <span class="text-accent mt-0.5 text-lg shrink-0">→</span>
             <div>
               <p class="text-sm text-white font-medium">Extended-training control</p>
-              <p class="text-xs text-slate-500 mt-0.5"><code class="text-slate-400">--no_injection</code> flag: same epoch budget without HNM data — isolates the actual HNM contribution from the benefit of more training time</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-light"><code class="text-slate-400 font-mono">--no_injection</code> flag: same epoch budget without HNM data — isolates the actual HNM contribution from the benefit of more training time</p>
             </div>
           </div>
           <div class="flex gap-3 items-start">
             <span class="text-accent mt-0.5 text-lg shrink-0">→</span>
             <div>
               <p class="text-sm text-white font-medium">PR-AUC as primary metric</p>
-              <p class="text-xs text-slate-500 mt-0.5">ROC-AUC is misleadingly optimistic under class imbalance in disaster detection. Precision-recall AUC measures the trade-off that matters operationally.</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-light">ROC-AUC is misleadingly optimistic under class imbalance in disaster detection. Precision-recall AUC measures the trade-off that matters operationally.</p>
             </div>
           </div>
           <div class="flex gap-3 items-start">
             <span class="text-accent mt-0.5 text-lg shrink-0">→</span>
             <div>
               <p class="text-sm text-white font-medium">Bootstrap CIs + McNemar test</p>
-              <p class="text-xs text-slate-500 mt-0.5">5-seed runs with mean ± std. No single-run results on 564 images without confidence intervals. McNemar test for paired model comparison.</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-light">5-seed runs with mean ± std. No single-run results on 564 images without confidence intervals. McNemar test for paired model comparison.</p>
             </div>
           </div>
           <div class="flex gap-3 items-start">
             <span class="text-accent mt-0.5 text-lg shrink-0">→</span>
             <div>
               <p class="text-sm text-white font-medium">Severity-stratified recall</p>
-              <p class="text-xs text-slate-500 mt-0.5">Major/Moderate/Minor flood recall reported separately — connects classification to operational emergency response thresholds (geoscience contribution).</p>
+              <p class="text-xs text-slate-500 mt-0.5 font-light">Major/Moderate/Minor flood recall reported separately — connects classification to operational emergency response thresholds (geoscience contribution).</p>
             </div>
           </div>
         </div>
 
-        <div class="mt-5 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent text-xs">
+        <div class="mt-5 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent text-xs font-mono">
           ⏳ Pipeline complete and verified locally. Awaiting Google Colab T4 GPU quota to run full experiments.
         </div>
       </div>
@@ -405,13 +512,14 @@ base_model = EfficientNetB0(
 ═══════════════════════════════════════════════════════════════════════ -->
 <section id="methodology" class="py-24 px-8 max-w-5xl mx-auto">
   <h2 class="section-title">Methodology</h2>
-  <p class="text-slate-400 mt-2 mb-10 max-w-2xl">
+  <p class="text-slate-400 mt-2 mb-10 max-w-2xl font-light">
     Six-step pipeline from raw dataset to statistically validated results.
-    Mining happens <strong class="text-white">only on training data</strong> —
+    Mining happens <strong class="text-white font-medium">only on training data</strong> —
     val and test partitions are never touched until final evaluation.
   </p>
 
-  <div class="rounded-xl bg-slate-800/30 border border-slate-700 p-6 overflow-x-auto">
+  <!-- Flowchart: desktop only (too dense for mobile) -->
+  <div class="hidden md:block rounded-xl bg-slate-800/30 border border-slate-700 p-6 overflow-x-auto">
     <pre class="mermaid">
 flowchart TD
 
@@ -502,19 +610,48 @@ EV_FP  --> EV_STAT
     </pre>
   </div>
 
+  <!-- Mobile-only: numbered step list -->
+  <div class="md:hidden space-y-3">
+    <p class="text-slate-500 text-xs mb-4 font-mono uppercase tracking-wider">Pipeline steps (simplified for mobile)</p>
+    <div class="flex gap-4 items-start p-4 rounded-lg bg-slate-800/40 border border-slate-700">
+      <span class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-bold font-mono flex items-center justify-center shrink-0">①</span>
+      <div><p class="text-white text-sm font-medium">Baseline training</p><p class="text-slate-400 text-xs mt-0.5 font-light">EfficientNetB0 + ResNet50, ImageNet weights, 2-phase fine-tuning ×5 seeds</p></div>
+    </div>
+    <div class="flex gap-4 items-start p-4 rounded-lg bg-slate-800/40 border border-slate-700">
+      <span class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-bold font-mono flex items-center justify-center shrink-0">②</span>
+      <div><p class="text-white text-sm font-medium">Confounder analysis</p><p class="text-slate-400 text-xs mt-0.5 font-light">Predict on train/non_flood/ — rank categories by false positive rate</p></div>
+    </div>
+    <div class="flex gap-4 items-start p-4 rounded-lg bg-slate-800/40 border border-slate-700">
+      <span class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-bold font-mono flex items-center justify-center shrink-0">③</span>
+      <div><p class="text-white text-sm font-medium">Hard negative mining</p><p class="text-slate-400 text-xs mt-0.5 font-light">Mine training set only (tau=0.3), augment 5×, assert zero val/test leakage</p></div>
+    </div>
+    <div class="flex gap-4 items-start p-4 rounded-lg bg-slate-800/40 border border-slate-700">
+      <span class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-bold font-mono flex items-center justify-center shrink-0">④</span>
+      <div><p class="text-white text-sm font-medium">Retrain configurations</p><p class="text-slate-400 text-xs mt-0.5 font-light">HNM retrain + extended-training control (same epochs, no injection)</p></div>
+    </div>
+    <div class="flex gap-4 items-start p-4 rounded-lg bg-slate-800/40 border border-slate-700">
+      <span class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-bold font-mono flex items-center justify-center shrink-0">⑤</span>
+      <div><p class="text-white text-sm font-medium">Threshold selection</p><p class="text-slate-400 text-xs mt-0.5 font-light">Sweep on val set only — test set never used for tuning</p></div>
+    </div>
+    <div class="flex gap-4 items-start p-4 rounded-lg bg-slate-800/40 border border-slate-700">
+      <span class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent text-xs font-bold font-mono flex items-center justify-center shrink-0">⑥</span>
+      <div><p class="text-white text-sm font-medium">Final evaluation</p><p class="text-slate-400 text-xs mt-0.5 font-light">PR-AUC (primary), severity-stratified recall, bootstrap CIs, McNemar test</p></div>
+    </div>
+  </div>
+
   <!-- Key design decisions callout -->
   <div class="mt-6 grid md:grid-cols-3 gap-4">
     <div class="p-4 rounded-lg bg-slate-800/30 border border-slate-700">
       <p class="text-accent text-xs font-mono uppercase tracking-wider mb-1">Data integrity</p>
-      <p class="text-slate-300 text-sm">Hard negatives mined <strong>only from training set</strong>. Assertion cell halts notebook if any file appears in both train and val/test.</p>
+      <p class="text-slate-300 text-sm font-light">Hard negatives mined <strong class="text-white font-medium">only from training set</strong>. Assertion cell halts notebook if any file appears in both train and val/test.</p>
     </div>
     <div class="p-4 rounded-lg bg-slate-800/30 border border-slate-700">
       <p class="text-accent text-xs font-mono uppercase tracking-wider mb-1">Threshold hygiene</p>
-      <p class="text-slate-300 text-sm">All threshold selection on <strong>validation set</strong>. Test set used exactly once per model configuration — never for tuning.</p>
+      <p class="text-slate-300 text-sm font-light">All threshold selection on <strong class="text-white font-medium">validation set</strong>. Test set used exactly once per model configuration — never for tuning.</p>
     </div>
     <div class="p-4 rounded-lg bg-slate-800/30 border border-slate-700">
       <p class="text-accent text-xs font-mono uppercase tracking-wider mb-1">Ablation control</p>
-      <p class="text-slate-300 text-sm">Extended-training control runs the <strong>same total epochs without HNM injection</strong> — isolates whether the improvement is from data or just training time.</p>
+      <p class="text-slate-300 text-sm font-light">Extended-training control runs the <strong class="text-white font-medium">same total epochs without HNM injection</strong> — isolates whether the improvement is from data or just training time.</p>
     </div>
   </div>
 </section>
@@ -526,14 +663,14 @@ EV_FP  --> EV_STAT
   <h2 class="section-title">Preliminary Results</h2>
 
   <!-- Caveat banner -->
-  <div class="mt-4 mb-8 p-4 rounded-xl bg-warn/10 border border-warn/40">
-    <p class="font-semibold text-warn">⚠️ Preprocessing bug present in these results</p>
-    <p class="text-sm mt-1 text-warn/80">
+  <div class="mt-4 mb-8 p-4 rounded-xl bg-warn/10 border-l-4 border-warn/60 border border-warn/20">
+    <p class="font-semibold text-warn font-display">⚠️ Preprocessing bug present in these results</p>
+    <p class="text-sm mt-1 text-warn/80 font-light">
       These numbers come from the CIBB 2026 code which had a double-rescaling bug that rendered transfer
       learning non-functional. The baseline figures (85.46%, 94.15%) are likely underestimates of what
       correct preprocessing will achieve. The HNM jump (85% → 99%) conflates at least three effects:
       (1) preprocessing fix, (2) additional training epochs, and (3) actual HNM data contribution.
-      <strong>These will be replaced with corrected numbers after GPU runs complete.</strong>
+      <strong class="text-warn font-medium">These will be replaced with corrected numbers after GPU runs complete.</strong>
       PR-AUC, bootstrap CIs, McNemar test results, and severity-stratified recall will be added then.
     </p>
   </div>
@@ -548,8 +685,8 @@ EV_FP  --> EV_STAT
     <button class="tab-btn" data-metric="poolFP">Pool FP Rate</button>
   </div>
 
-  <!-- Chart -->
-  <div class="rounded-xl bg-slate-800/30 border border-slate-700 p-6">
+  <!-- Chart (visually receded — preliminary) -->
+  <div class="preliminary-data rounded-xl bg-slate-800/30 border border-slate-700 p-6">
     <canvas id="resultsChart" height="300"></canvas>
     <p id="metric-note" class="text-slate-500 text-xs mt-3 text-center hidden"></p>
   </div>
@@ -568,9 +705,9 @@ EV_FP  --> EV_STAT
           <th class="pb-2">Pool FP</th>
         </tr>
       </thead>
-      <tbody class="text-slate-300">
+      <tbody class="text-slate-300 font-mono text-xs">
         <tr class="border-b border-slate-800">
-          <td class="py-2 pr-4 font-medium">EfficientNetB0</td>
+          <td class="py-2 pr-4 font-sans text-sm font-medium">EfficientNetB0</td>
           <td class="pr-4">85.46%</td>
           <td class="pr-4">90.88%</td>
           <td class="pr-4">82.22%</td>
@@ -579,7 +716,7 @@ EV_FP  --> EV_STAT
           <td class="text-warn">20.00%</td>
         </tr>
         <tr class="border-b border-slate-800">
-          <td class="py-2 pr-4 font-medium">ResNet50</td>
+          <td class="py-2 pr-4 font-sans text-sm font-medium">ResNet50</td>
           <td class="pr-4">94.15%</td>
           <td class="pr-4">94.90%</td>
           <td class="pr-4">94.60%</td>
@@ -588,7 +725,7 @@ EV_FP  --> EV_STAT
           <td class="text-warn">13.33%</td>
         </tr>
         <tr>
-          <td class="py-2 pr-4 font-medium">EfficientNetB0 + HNM</td>
+          <td class="py-2 pr-4 font-sans text-sm font-medium">EfficientNetB0 + HNM</td>
           <td class="pr-4">98.76%</td>
           <td class="pr-4">98.43%</td>
           <td class="pr-4">99.37%</td>
@@ -598,14 +735,17 @@ EV_FP  --> EV_STAT
         </tr>
       </tbody>
     </table>
-    <p class="text-slate-600 text-xs mt-2">
+    <p class="text-slate-600 text-xs mt-2 font-light">
       *0% pool FP on n=15 images. 95% Clopper-Pearson CI ≈ [0%, 21.8%]. Fisher exact test vs baseline: p ≈ 0.11 (not significant at α=0.05). Results produced with preprocessing bug present.
     </p>
   </div>
 
-  <p class="text-slate-500 text-sm mt-6 text-center">
-    After GPU runs: PR-AUC (primary metric) · bootstrap 95% CIs · McNemar test p-values · severity-stratified recall (Major/Moderate/Minor) will replace these numbers.
-  </p>
+  <!-- Corrected results placeholder -->
+  <div class="mt-8 p-6 rounded-xl border-2 border-dashed border-slate-700 text-center">
+    <p class="text-slate-500 text-sm font-mono uppercase tracking-wider mb-1">Corrected Results</p>
+    <p class="text-slate-600 text-sm font-light">PR-AUC (primary metric) · bootstrap 95% CIs · McNemar test p-values · severity-stratified recall (Major/Moderate/Minor)</p>
+    <p class="text-slate-700 text-xs mt-3 font-mono">Awaiting Google Colab T4 GPU access</p>
+  </div>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
@@ -613,77 +753,114 @@ EV_FP  --> EV_STAT
 ═══════════════════════════════════════════════════════════════════════ -->
 <section id="next" class="py-24 px-8 max-w-5xl mx-auto">
   <h2 class="section-title">What's Next</h2>
-  <p class="text-slate-400 mt-2 mb-10">
-    Planned experiments — all awaiting GPU access (Google Colab T4). The pipeline scripts are
-    written and verified; they just need to run. Listed in execution priority order.
+  <p class="text-slate-400 mt-2 mb-10 font-light">
+    Planned experiments — all awaiting GPU access (Google Colab T4). Pipeline scripts are
+    written and verified locally. Listed in execution priority order.
   </p>
 
-  <div class="grid md:grid-cols-2 gap-4">
-
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase A · Blocks everything else</span>
-      </div>
-      <h4 class="text-white font-semibold mb-1">Baseline Retraining × 2 Architectures × 5 Seeds</h4>
-      <p class="text-slate-400 text-sm">Fix preprocessing, retrain EfficientNetB0 + ResNet50 from scratch with corrected input pipeline. Multi-seed statistical robustness (seeds 42, 123, 256, 512, 1024).</p>
+  <!-- ── PHASE A: FOUNDATIONAL ─────────────────────────────────────────── -->
+  <div class="mb-3">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-xs font-mono text-slate-500 uppercase tracking-wider">Phase A</span>
+      <span class="px-2 py-0.5 rounded text-xs bg-warn/15 text-warn border border-warn/30 font-mono">Blocks everything else</span>
     </div>
+    <div class="grid md:grid-cols-2 gap-4">
 
-    <div class="card border-warn/30">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-warn/70 uppercase">Critical Ablation · Run Before HNM</span>
+      <div class="p-6 rounded-xl bg-slate-800/60 border border-slate-600 hover:border-slate-400 transition">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">GPU required</span>
+        </div>
+        <h4 class="text-white font-semibold mb-2 font-display">Baseline Retraining × 2 Architectures × 5 Seeds</h4>
+        <p class="text-slate-400 text-sm font-light">Fix preprocessing, retrain EfficientNetB0 + ResNet50 from scratch with corrected input pipeline. Multi-seed statistical robustness (seeds 42, 123, 256, 512, 1024).</p>
       </div>
-      <h4 class="text-white font-semibold mb-1">Extended-Training Control (--no_injection)</h4>
-      <p class="text-slate-400 text-sm">Retrain the baseline for the same total epoch budget as the HNM model, <em>without</em> injecting any hard negatives. If this matches HNM performance, the improvement is attributable to training time, not the data. This is the most important experiment.</p>
-    </div>
 
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase A · GPU Required</span>
+      <div class="p-6 rounded-xl bg-slate-800/60 border-l-4 border-warn border border-warn/40 hover:border-warn/70 transition">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-2 h-2 rounded-full bg-warn shrink-0"></span>
+          <span class="text-xs font-mono text-warn/70 uppercase tracking-wider">Critical ablation — run before HNM</span>
+        </div>
+        <h4 class="text-white font-semibold mb-2 font-display">Extended-Training Control <span class="font-mono text-sm font-normal text-slate-400">(--no_injection)</span></h4>
+        <p class="text-slate-400 text-sm font-light">Retrain the baseline for the same total epoch budget as the HNM model, <em>without</em> injecting any hard negatives. If this matches HNM performance, the improvement is attributable to training time, not the data. <strong class="text-warn/80 font-medium">This is the most important experiment.</strong></p>
       </div>
-      <h4 class="text-white font-semibold mb-1">Hard Negative Mining — Both Architectures</h4>
-      <p class="text-slate-400 text-sm">Mine confounders from training set, augment 5×, retrain with tau=0.3. Both EfficientNetB0 and ResNet50. Enables first genuine architectural comparison via HNM delta = (HNM accuracy) − (baseline accuracy) per architecture.</p>
-    </div>
 
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase B · CPU-Ready</span>
+    </div>
+  </div>
+
+  <!-- ── PHASE B: STATISTICAL ROBUSTNESS ──────────────────────────────── -->
+  <div class="mb-3 mt-10">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-xs font-mono text-slate-500 uppercase tracking-wider">Phase B</span>
+      <span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-300 border border-slate-600 font-mono">Required for submission</span>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+
+      <div class="card">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-500 uppercase">GPU required</span>
+        </div>
+        <h4 class="text-white font-semibold mb-1 font-display">Hard Negative Mining — Both Architectures</h4>
+        <p class="text-slate-400 text-sm font-light">Mine confounders from training set, augment 5×, retrain with tau=0.3. Both EfficientNetB0 and ResNet50. Enables first genuine architectural comparison via HNM delta = (HNM accuracy) − (baseline accuracy) per architecture.</p>
       </div>
-      <h4 class="text-white font-semibold mb-1">Comprehensive Evaluation Suite</h4>
-      <p class="text-slate-400 text-sm">PR-AUC (primary), bootstrap 95% CIs, McNemar test, severity-stratified recall, Clopper-Pearson CIs for pool FP rate, Fisher exact test, confusion matrices with cell annotations.</p>
-    </div>
 
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase C · GPU Required</span>
+      <div class="card">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2 h-2 rounded-full bg-green-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-500 uppercase">CPU-ready</span>
+        </div>
+        <h4 class="text-white font-semibold mb-1 font-display">Comprehensive Evaluation Suite</h4>
+        <p class="text-slate-400 text-sm font-light">PR-AUC (primary), bootstrap 95% CIs, McNemar test, severity-stratified recall, Clopper-Pearson CIs for pool FP rate, Fisher exact test, confusion matrices with cell annotations.</p>
       </div>
-      <h4 class="text-white font-semibold mb-1">GradCAM++ Interpretability</h4>
-      <p class="text-slate-400 text-sm">Heatmaps for all false negatives, false positives, and swimming pool cases. Feature space t-SNE/UMAP visualisation on penultimate-layer embeddings, coloured by flood severity and pool status.</p>
-    </div>
 
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase C · Validation Set Only</span>
+    </div>
+  </div>
+
+  <!-- ── PHASE C: EXTENDED EXPERIMENTS ────────────────────────────────── -->
+  <div class="mt-10">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-xs font-mono text-slate-500 uppercase tracking-wider">Phase C</span>
+      <span class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-500 border border-slate-700 font-mono">Extended scope</span>
+    </div>
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+
+      <div class="p-4 rounded-xl bg-slate-800/30 border border-slate-700 hover:border-slate-600 transition">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-500 uppercase">GPU</span>
+        </div>
+        <h4 class="text-white text-sm font-semibold mb-1 font-display">GradCAM++ Interpretability</h4>
+        <p class="text-slate-500 text-xs font-light">Heatmaps for false negatives, false positives, and pool cases. t-SNE/UMAP on penultimate-layer embeddings.</p>
       </div>
-      <h4 class="text-white font-semibold mb-1">Threshold Optimisation (Val-Only)</h4>
-      <p class="text-slate-400 text-sm">Sweep 0.05 → 0.95 on validation set. Select the operating point that maximises flood recall subject to 0% pool FP on val. Report test performance at that threshold exactly once — not iterated.</p>
-    </div>
 
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase C · GPU Required</span>
+      <div class="p-4 rounded-xl bg-slate-800/30 border border-slate-700 hover:border-slate-600 transition">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-500 uppercase">Val-only</span>
+        </div>
+        <h4 class="text-white text-sm font-semibold mb-1 font-display">Threshold Optimisation</h4>
+        <p class="text-slate-500 text-xs font-light">Sweep 0.05→0.95 on validation. Select max flood recall s.t. 0% pool FP. Report test once.</p>
       </div>
-      <h4 class="text-white font-semibold mb-1">Additional Baselines</h4>
-      <p class="text-slate-400 text-sm">MobileNetV3 (deployment on resource-constrained devices) and Vision Transformer (ViT-B/16 or Swin-T). Also Focal Loss as a drop-in alternative to binary cross-entropy for handling class imbalance.</p>
-    </div>
 
-    <div class="card">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-mono text-slate-500 uppercase">Phase C · CPU</span>
+      <div class="p-4 rounded-xl bg-slate-800/30 border border-slate-700 hover:border-slate-600 transition">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-500 uppercase">GPU</span>
+        </div>
+        <h4 class="text-white text-sm font-semibold mb-1 font-display">Additional Baselines</h4>
+        <p class="text-slate-500 text-xs font-light">MobileNetV3 (edge deployment) and ViT-B/16. Focal Loss as class-imbalance alternative.</p>
       </div>
-      <h4 class="text-white font-semibold mb-1">Severity-Stratified Recall (Step 16)</h4>
-      <p class="text-slate-400 text-sm">Use existing binary model + severity metadata to report recall_major, recall_moderate, recall_minor separately. If MinorFlood has lower recall, this is an operationally meaningful finding for emergency triage design.</p>
-    </div>
 
+      <div class="p-4 rounded-xl bg-slate-800/30 border border-slate-700 hover:border-slate-600 transition">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"></span>
+          <span class="text-xs font-mono text-slate-500 uppercase">CPU</span>
+        </div>
+        <h4 class="text-white text-sm font-semibold mb-1 font-display">Severity-Stratified Recall</h4>
+        <p class="text-slate-500 text-xs font-light">recall_major / recall_moderate / recall_minor. Connects classifier outputs to operational emergency triage thresholds.</p>
+      </div>
+
+    </div>
   </div>
 </section>
 
@@ -692,13 +869,13 @@ EV_FP  --> EV_STAT
 ═══════════════════════════════════════════════════════════════════════ -->
 <section id="code" class="py-24 px-8 max-w-5xl mx-auto">
   <h2 class="section-title">Code &amp; Reproducibility</h2>
-  <p class="text-slate-400 mt-2 mb-10">
+  <p class="text-slate-400 mt-2 mb-10 font-light">
     All code is open source (MIT license). Notebooks are Colab-ready with kernel switching instructions;
-    scripts are parameterised with <code class="text-accent">--arch</code> flags for reproducibility.
+    scripts are parameterised with <code class="text-accent font-mono">--arch</code> flags for reproducibility.
   </p>
 
   <!-- Pipeline execution order -->
-  <h3 class="text-white font-semibold mb-4">Pipeline Execution Order</h3>
+  <h3 class="text-white font-semibold mb-4 font-display">Pipeline Execution Order</h3>
   <div class="overflow-x-auto mb-10">
     <table class="w-full text-sm">
       <thead class="text-slate-500 border-b border-slate-700">
@@ -714,43 +891,43 @@ EV_FP  --> EV_STAT
           <td class="py-2 pr-4">Baseline EfficientNetB0</td>
           <td class="pr-4 font-mono text-xs text-accent">03_baseline_efficientnetb0.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">train_baseline.py --arch efficientnet</td>
-          <td class="text-warn text-xs">T4 GPU</td>
+          <td class="text-warn text-xs font-mono">T4 GPU</td>
         </tr>
         <tr class="border-b border-slate-800">
           <td class="py-2 pr-4">Baseline ResNet50</td>
           <td class="pr-4 font-mono text-xs text-accent">04_baseline_resnet50.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">train_baseline.py --arch resnet50</td>
-          <td class="text-warn text-xs">T4 GPU</td>
+          <td class="text-warn text-xs font-mono">T4 GPU</td>
         </tr>
         <tr class="border-b border-slate-800">
           <td class="py-2 pr-4">Confounder analysis</td>
           <td class="pr-4 font-mono text-xs text-accent">05a_confounder_analysis.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">analyze_confounders.py</td>
-          <td class="text-warn text-xs">T4 GPU</td>
+          <td class="text-warn text-xs font-mono">T4 GPU</td>
         </tr>
         <tr class="border-b border-slate-800">
           <td class="py-2 pr-4">HNM — EfficientNetB0</td>
           <td class="pr-4 font-mono text-xs text-accent">05b_hnm_efficientnetb0.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">train_hnm.py --arch efficientnet</td>
-          <td class="text-warn text-xs">T4 GPU</td>
+          <td class="text-warn text-xs font-mono">T4 GPU</td>
         </tr>
         <tr class="border-b border-slate-800">
           <td class="py-2 pr-4">HNM — ResNet50</td>
           <td class="pr-4 font-mono text-xs text-accent">05c_hnm_resnet50.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">train_hnm.py --arch resnet50</td>
-          <td class="text-warn text-xs">T4 GPU</td>
+          <td class="text-warn text-xs font-mono">T4 GPU</td>
         </tr>
         <tr class="border-b border-slate-800">
           <td class="py-2 pr-4">Extended-training control</td>
           <td class="pr-4 font-mono text-xs text-accent">05d_extended_training_control.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">train_hnm.py --no_injection</td>
-          <td class="text-warn text-xs">T4 GPU</td>
+          <td class="text-warn text-xs font-mono">T4 GPU</td>
         </tr>
         <tr>
           <td class="py-2 pr-4">Evaluation</td>
           <td class="pr-4 font-mono text-xs text-accent">06_evaluation.ipynb</td>
           <td class="pr-4 font-mono text-xs text-slate-400">evaluate.py</td>
-          <td class="text-slate-400 text-xs">CPU/GPU</td>
+          <td class="text-slate-400 text-xs font-mono">CPU/GPU</td>
         </tr>
       </tbody>
     </table>
@@ -759,13 +936,13 @@ EV_FP  --> EV_STAT
   <!-- Links + quick-setup -->
   <div class="grid md:grid-cols-2 gap-6">
     <div class="card">
-      <h4 class="text-white font-semibold mb-3">Repository</h4>
+      <h4 class="text-white font-semibold mb-3 font-display">Repository</h4>
       <a href="https://github.com/CRIS-Hazard/imagevalidation"
          target="_blank" rel="noopener"
          class="inline-flex items-center gap-2 text-accent hover:underline text-sm font-mono">
         github.com/CRIS-Hazard/imagevalidation ↗
       </a>
-      <p class="text-slate-500 text-xs mt-2">MIT License · Target journal: <em>Computers &amp; Geosciences</em> (Elsevier, ISSN 0098-3004)</p>
+      <p class="text-slate-500 text-xs mt-2 font-light">MIT License · Target journal: <em>Computers &amp; Geosciences</em> (Elsevier, ISSN 0098-3004)</p>
       <div class="mt-3 flex flex-wrap gap-2">
         <span class="px-2 py-0.5 rounded text-xs bg-slate-900 text-slate-400 font-mono">Python 3.10+</span>
         <span class="px-2 py-0.5 rounded text-xs bg-slate-900 text-slate-400 font-mono">TensorFlow 2.16+</span>
@@ -774,8 +951,8 @@ EV_FP  --> EV_STAT
       </div>
     </div>
     <div class="card">
-      <h4 class="text-white font-semibold mb-3">Quick setup</h4>
-      <pre class="text-xs text-slate-400 leading-relaxed"><code># Install dependencies
+      <h4 class="text-white font-semibold mb-3 font-display">Quick setup</h4>
+      <pre class="text-xs text-slate-400 leading-relaxed font-mono"><code># Install dependencies
 pip install -r requirements.txt
 
 # Open any notebook in VS Code
@@ -790,16 +967,16 @@ drive.mount('/content/drive')</code></pre>
 
   <!-- Reproducibility checklist highlights -->
   <div class="mt-6 p-5 rounded-xl bg-slate-800/30 border border-slate-700">
-    <h4 class="text-white font-semibold mb-3">Reproducibility commitments</h4>
-    <div class="grid md:grid-cols-2 gap-2 text-sm text-slate-400">
-      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span>All random seeds fixed and documented (np, tf, random, PYTHONHASHSEED)</span></div>
-      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span>requirements.txt pins exact versions (tensorflow==2.16.x)</span></div>
-      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span>Partition integrity assertion in every notebook (zero train/val/test overlap)</span></div>
-      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span>HNM mining on training data only — assertion cell halts on any leakage</span></div>
-      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span>Preprocessing verified: no double-rescaling (assertion before every train loop)</span></div>
-      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span>Threshold selection on validation set only — test set used once per config</span></div>
-      <div class="flex items-start gap-2"><span class="text-accent shrink-0">○</span><span>Multi-seed results report mean ± std (pending GPU runs)</span></div>
-      <div class="flex items-start gap-2"><span class="text-accent shrink-0">○</span><span>Dockerfile pinning CUDA/TF/Python versions (pending final environment)</span></div>
+    <h4 class="text-white font-semibold mb-3 font-display">Reproducibility commitments</h4>
+    <div class="grid md:grid-cols-2 gap-2 text-sm text-slate-400 font-light">
+      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0 font-mono">✓</span><span>All random seeds fixed and documented (np, tf, random, PYTHONHASHSEED)</span></div>
+      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0 font-mono">✓</span><span>requirements.txt pins exact versions (tensorflow==2.16.x)</span></div>
+      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0 font-mono">✓</span><span>Partition integrity assertion in every notebook (zero train/val/test overlap)</span></div>
+      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0 font-mono">✓</span><span>HNM mining on training data only — assertion cell halts on any leakage</span></div>
+      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0 font-mono">✓</span><span>Preprocessing verified: no double-rescaling (assertion before every train loop)</span></div>
+      <div class="flex items-start gap-2"><span class="text-green-400 shrink-0 font-mono">✓</span><span>Threshold selection on validation set only — test set used once per config</span></div>
+      <div class="flex items-start gap-2"><span class="text-accent shrink-0 font-mono">○</span><span>Multi-seed results report mean ± std (pending GPU runs)</span></div>
+      <div class="flex items-start gap-2"><span class="text-accent shrink-0 font-mono">○</span><span>Dockerfile pinning CUDA/TF/Python versions (pending final environment)</span></div>
     </div>
   </div>
 </section>
@@ -809,14 +986,21 @@ drive.mount('/content/drive')</code></pre>
 <!-- ═══════════════════════════════════════════════════════════════════════
      FOOTER
 ═══════════════════════════════════════════════════════════════════════ -->
-<footer class="border-t border-slate-800 py-8 px-8 text-center text-slate-600 text-sm">
-  <p>Flood Detection from Street-Level Imagery via Hard Negative Mining</p>
+<footer class="border-t border-slate-800 py-8 px-8 text-center text-slate-600 text-sm font-light">
+  <p class="font-display text-slate-500 font-medium">Flood Detection from Street-Level Imagery via Hard Negative Mining</p>
   <p class="mt-1">Target: <em>Computers &amp; Geosciences</em> (Elsevier, ISSN 0098-3004) · MIT License</p>
   <p class="mt-1">
     <a href="https://github.com/CRIS-Hazard/imagevalidation" target="_blank" rel="noopener"
-       class="hover:text-accent transition">github.com/CRIS-Hazard/imagevalidation</a>
+       class="hover:text-accent transition font-mono text-xs">github.com/CRIS-Hazard/imagevalidation</a>
   </p>
 </footer>
+
+<!-- Back-to-top button -->
+<button id="back-to-top" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+  </svg>
+</button>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      CHART.JS INITIALIZATION
@@ -874,7 +1058,7 @@ drive.mount('/content/drive')</code></pre>
   const chart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: MODELS.map(m => m.split('\n')),  // multi-line labels
+      labels: MODELS.map(m => m.split('\n')),
       datasets: [{
         label: METRICS[activeMetric].label,
         data:  METRICS[activeMetric].data,
@@ -936,6 +1120,47 @@ drive.mount('/content/drive')</code></pre>
       }
     });
   });
+
+  // ── Nav active state via Intersection Observer ────────────────────────────
+  const navLinks = document.querySelectorAll('nav a[data-section]');
+  const sections = document.querySelectorAll('section[id]');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => {
+          link.classList.remove('nav-active');
+          if (link.dataset.section === entry.target.id) {
+            link.classList.add('nav-active');
+          }
+        });
+      }
+    });
+  }, { rootMargin: '-50% 0px -50% 0px' });
+
+  sections.forEach(section => observer.observe(section));
+
+  // ── Scroll-triggered fade-in ──────────────────────────────────────────────
+  const fadeObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        fadeObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in-up').forEach(el => fadeObserver.observe(el));
+
+  // ── Back to top visibility ────────────────────────────────────────────────
+  const backToTop = document.getElementById('back-to-top');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 400) {
+      backToTop.classList.add('visible');
+    } else {
+      backToTop.classList.remove('visible');
+    }
+  }, { passive: true });
 </script>
 
 </body>
